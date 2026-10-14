@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="manifest" href="manifest.json"><meta name="theme-color" content="#b8860b"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><link rel="apple-touch-icon" href="icon-192.png"><title>Market Bias Precheck</title>
+<style>
+:root{--bg:#f6f5f1;--card:#fff;--tx:#1b1b1a;--mu:#6b6a65;--bd:#ddd9cf;--ac:#b8860b;--up:#1a7f4b;--dn:#c0392b;--nu:#8a8a85;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#141413;--card:#1f1f1d;--tx:#eeece6;--mu:#9a988f;--bd:#34332f;--ac:#e0b040;--up:#3fbf7f;--dn:#ef6a5a}}
+:root[data-theme="dark"]{--bg:#141413;--card:#1f1f1d;--tx:#eeece6;--mu:#9a988f;--bd:#34332f;--ac:#e0b040;--up:#3fbf7f;--dn:#ef6a5a}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.4 system-ui,sans-serif;max-width:640px;margin:auto;padding:12px}
+h1{font-size:18px;margin:4px 0 10px}h2{font-size:13px;text-transform:uppercase;letter-spacing:.05em;color:var(--mu);margin:14px 0 6px}
+.tabs{display:flex;overflow-x:auto;gap:6px;position:sticky;top:env(safe-area-inset-top,0px);background:var(--bg);padding:6px 0;z-index:2}
+.tabs button{flex:1 0 auto;padding:9px 11px;border:1px solid var(--bd);background:var(--card);color:var(--tx);border-radius:8px;font-size:11.5px}
+.tabs button.on{background:var(--ac);color:#fff;border-color:var(--ac)}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:10px;margin-bottom:8px}
+label{display:block;font-size:12px;color:var(--mu);margin:8px 0 3px}
+input,select,textarea{width:100%;padding:9px;border:1px solid var(--bd);border-radius:7px;background:var(--bg);color:var(--tx);font:inherit}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.pill{display:inline-block;padding:2px 9px;border-radius:99px;color:#fff;font-weight:600;font-size:13px}
+.up{color:var(--up)}.dn{color:var(--dn)}.nu{color:var(--nu)}
+.bgu{background:var(--up)}.bgd{background:var(--dn)}.bgn{background:var(--nu)}
+.big{font-size:26px;font-weight:700}.f{display:flex;justify-content:space-between;gap:8px;padding:5px 0;border-top:1px solid var(--bd);font-size:13px}
+.bar{height:8px;background:var(--bd);border-radius:4px;position:relative;margin:6px 0}.bar i{position:absolute;top:0;height:100%;border-radius:4px}.bar b{position:absolute;left:50%;top:-2px;width:2px;height:12px;background:var(--tx)}
+.mu{color:var(--mu);font-size:12px}button.r{margin-top:12px;width:100%;padding:9px;border:1px solid var(--bd);background:none;color:var(--mu);border-radius:8px}
+.b{margin-top:10px;width:100%;padding:10px;border:0;border-radius:8px;background:var(--ac);color:#fff;font:inherit}.b.s{width:auto;margin:0;padding:4px 14px}.cg{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}.cd{text-align:center;padding:6px 0;border:1px solid var(--bd);border-radius:6px;min-height:46px;font-size:13px}.cd i{display:inline-block;width:7px;height:7px;border-radius:50%;margin:1px}.cd.td{border-color:var(--ac);font-weight:700}.cd.sl{background:var(--bd)}.chips{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}.ch{padding:8px 14px;border:2px solid var(--c);background:none;color:var(--tx);border-radius:99px}.ch.on{background:var(--c);color:#fff}.x{border:0;background:none;color:var(--dn);font-size:16px}
+</style></head><body>
+<h1>🥇 Market Bias Precheck</h1>
+<div class="tabs" id="tabs"></div>
+<div id="v"></div>
+<button class="r" onclick="if(confirm('Clear all data?')){S={};save();draw()}">Clear all data</button>
+<script>
+const $=id=>document.getElementById(id);
+const cl=(x,a,b)=>Math.max(a,Math.min(b,x));
+const num=k=>{const v=parseFloat(S[k]);return isNaN(v)?null:v};
+let S={};try{S=JSON.parse(localStorage.getItem('bp')||'{}')}catch(e){}
+const save=()=>{try{localStorage.setItem('bp',JSON.stringify(S))}catch(e){}};
+let tab='m';
+const N=(id,l,ph)=>({id,l,ph});
+const SECT={
+m:{n:'Monthly',f:[N('cur','Current Fed funds rate, mid (%)','3.75'),N('dot','Dot plot median, year-end (%)','3.25'),N('pdot','Previous dot plot median (%)','3.50'),N('cb','WGC central bank net buying, latest (tonnes)','60'),N('pcb','WGC previous period (tonnes)','45')]},
+w:{n:'Weekly',f:[N('ml','COT managed money LONG (this week)'),N('ms','COT managed money SHORT (this week)'),N('pml','COT managed money LONG (last week)'),N('pms','COT managed money SHORT (last week)'),N('ext','Net position percentile, 0-100 (optional)','e.g. 85'),N('cut','FedWatch: cut probability next meeting (%)'),N('hike','FedWatch: hike probability (%)','0'),N('pcut','FedWatch: cut probability last week (%)')]},
+d:{n:'Daily',f:[N('co','Candle OPEN'),N('chi','Candle HIGH'),N('clo','Candle LOW'),N('cc','Candle CLOSE (or live price)'),N('pcl','Previous day CLOSE (optional)'),N('pc','Price change today % (auto from candle if blank)'),N('oc','Futures open interest change (%)'),N('px','Current price'),N('lv','Key levels',''),N('re','Reaction at level','')]}};
+const REACT=[['','Select...'],[2,'Bullish rejection from support'],[2,'Broke above resistance & held'],[0,'No reaction / chop'],[-2,'Bearish rejection from resistance'],[-2,'Broke below support & held']];
+function parseLv(){return (S.lv||'').split('\n').map(l=>{const m=l.match(/-?\d+(\.\d+)?/);return m?{p:parseFloat(m[0]),t:l.replace(m[0],'').trim()}:null}).filter(Boolean)}
+function calc(){
+const o={m:[],w:[],d:[]};
+let c=num('cur'),d=num('dot'),p=num('pdot');
+if(c!=null&&d!=null){const cuts=(c-d)/.25;let s=cl(cuts/2,-2,2),t=`${cuts.toFixed(1)} cuts of 25bp projected`;
+ if(p!=null){const sh=(p-d)/.25;s=cl(s+cl(sh/2,-1,1),-2,2);t+=sh>0?', dots shifted dovish':sh<0?', dots shifted hawkish':', no shift'}
+ o.m.push({n:'Dot plot',s,t})}
+let cb=num('cb'),pcb=num('pcb');
+if(cb!=null){let s=cb>=50?1.5:cb>=20?1:cb>-20?0:cb>-50?-1:-1.5,t=cb+'t net buying';
+ if(pcb!=null){s=cl(s+(cb>pcb?.5:cb<pcb?-.5:0),-2,2);t+=cb>pcb?', accelerating':cb<pcb?', slowing':', unchanged'}
+ o.m.push({n:'Central banks',s,t})}
+let l=num('ml'),sh=num('ms'),pl=num('pml'),ps=num('pms'),ex=num('ext');
+if(l!=null&&sh!=null){const net=l-sh;let s,t='Net '+net.toLocaleString();
+ if(pl!=null&&ps!=null){const ch=net-(pl-ps);s=ch>10000?2:ch>0?1:ch<-10000?-2:ch<0?-1:0;t+=`, change ${ch>0?'+':''}${ch.toLocaleString()}`}
+ else{s=net>0?1:net<0?-1:0}
+ if(ex!=null){if(ex>=90){s-=1;t+=', crowded long (contrarian risk)'}else if(ex<=10){s+=1;t+=', crowded short (squeeze fuel)'}}
+ o.w.push({n:'COT',s:cl(s,-2,2),t})}
+let cu=num('cut'),hk=num('hike')||0,pc=num('pcut');
+if(cu!=null){let s=cl((cu-hk)/50,-2,2),t=`Cut ${cu}% vs hike ${hk}%`;
+ if(pc!=null){const dl=cu-pc;s=cl(s+cl(dl/20,-.5,.5),-2,2);t+=`, ${dl>=0?'+':''}${dl} pts vs last week`}
+ o.w.push({n:'FedWatch',s,t})}
+let O=num('co'),Hh=num('chi'),Ll=num('clo'),Cc=num('cc'),pcl=num('pcl'),pr=num('pc'),oi=num('oc');if(pr==null&&Cc!=null){const b0=pcl!=null?pcl:O;if(b0)pr=(Cc-b0)/b0*100}
+if(pr!=null&&oi!=null){let s,t;
+ if(pr>0&&oi>0){s=2;t='Price up + OI up: new longs'}else if(pr>0){s=.5;t='Price up + OI down: short covering (weak)'}
+ else if(pr<0&&oi>0){s=-2;t='Price down + OI up: new shorts'}else if(pr<0){s=-.5;t='Price down + OI down: long liquidation'}else{s=0;t='Flat'}
+ o.d.push({n:'Open interest',s,t})}
+if(O!=null&&Hh!=null&&Ll!=null&&Cc!=null&&Hh>Ll){const rg=Hh-Ll,bd=Cc-O,cp=(Cc-Ll)/rg,uw=(Hh-Math.max(O,Cc))/rg,lw=(Math.min(O,Cc)-Ll)/rg;let s=(cp-.5)*3,t=`${bd>=0?'Bullish':'Bearish'} candle, closed ${Math.round(cp*100)}% up the range`;if(Math.abs(bd)/rg>.6){s+=Math.sign(bd)*.5;t+=', strong body'}if(uw>.5){s-=.5;t+=', long upper wick (sellers rejected highs)'}if(lw>.5){s+=.5;t+=', long lower wick (buyers defended lows)'}o.d.push({n:'Candle',s:cl(s,-2,2),t})}
+const rx=REACT[S.re|0];
+if(S.re&&S.re!=='0'&&REACT[+S.re]&&REACT[+S.re][0]!==''){o.d.push({n:'Reaction',s:REACT[+S.re][0],t:REACT[+S.re][1]})}
+let px=num('px'),lv=parseLv(),near=null;
+if(px!=null&&lv.length){const dn=lv.filter(x=>x.p<=px).sort((a,b)=>b.p-a.p)[0],up=lv.filter(x=>x.p>px).sort((a,b)=>a.p-b.p)[0];
+ let t='',s=0;if(dn)t+=`Support ${dn.p}${dn.t?' ('+dn.t+')':''} -${(px-dn.p).toFixed(2)}`;if(up)t+=(t?' | ':'')+`Resistance ${up.p}${up.t?' ('+up.t+')':''} +${(up.p-px).toFixed(2)}`;
+ if(dn&&up){const a=px-dn.p,b=up.p-px;if(a<b*.5)s=.5;else if(b<a*.5)s=-.5}
+ near={dn,up};o.d.push({n:'Key levels',s,t})}
+return {o,near,px};}
+const avg=a=>a.length?a.reduce((x,y)=>x+y.s,0)/a.length/2:null;
+const lab=v=>v==null?['No data','bgn']:v>.5?['Strong Bullish','bgu']:v>.15?['Bullish','bgu']:v<-.5?['Strong Bearish','bgd']:v<-.15?['Bearish','bgd']:['Neutral','bgn'];
+const sg=v=>v>.15?1:v<-.15?-1:0;
+function bar(v){if(v==null)return'';const w=Math.abs(v)*50;return `<div class="bar"><b></b><i style="${v>=0?'left:50%':'right:50%'};width:${w}%;background:var(${v>=0?'--up':'--dn'})"></i></div>`}
+function sectView(k,R){const sc=avg(R.o[k]),[t,cls]=lab(sc);
+return `<div class="card"><span class="pill ${cls}">${t}</span> <span class="mu">score ${sc==null?'-':(sc*100).toFixed(0)} / 100</span>${bar(sc)}${R.o[k].map(x=>`<div class="f"><span><b>${x.n}</b><br><span class="mu">${x.t}</span></span><b class="${x.s>0?'up':x.s<0?'dn':'nu'}">${x.s>0?'+':''}${x.s.toFixed(1)}</b></div>`).join('')||'<span class="mu">Enter data below to see the read.</span>'}</div>`}
+function inputs(k){return SECT[k].f.map(f=>{
+if(f.id==='lv')return `<label>${f.l} (one per line: price + label, e.g. "3350 support")</label><textarea rows="4" oninput="S.lv=this.value;save();upd()">${S.lv||''}</textarea>`;
+if(f.id==='re')return `<label>${f.l}</label><select onchange="S.re=this.value;save();upd()">${REACT.map((r,i)=>`<option value="${i}" ${S.re==i?'selected':''}>${r[1]}</option>`).join('')}</select>`;
+return `<label>${f.l}</label><input type="number" inputmode="decimal" step="any" placeholder="${f.ph||''}" value="${S[f.id]??''}" oninput="S['${f.id}']=this.value;save();upd()">`}).join('')}
+function result(R){
+const m=avg(R.o.m),w=avg(R.o.w),d=avg(R.o.d);
+const parts=[[m,.4],[w,.35],[d,.25]].filter(x=>x[0]!=null);
+const tw=parts.reduce((a,x)=>a+x[1],0),tot=tw?parts.reduce((a,x)=>a+x[0]*x[1],0)/tw:null;
+const [t,cls]=lab(tot);let msg='Enter data in at least one section.';
+if(tot!=null){const mw=(m!=null?sg(m):0),ww=(w!=null?sg(w):0),dir=mw||ww,aligned=m!=null&&w!=null&&mw===ww&&mw!==0;
+ const dc=d==null?'not entered':sg(d)===0?'neutral':sg(d)===dir?'confirms':'conflicts';
+ const side=dir>0?'LONG':dir<0?'SHORT':'';
+ const near=R.near||{};const lvl=dir>0&&near.dn?` Zone to watch: support ${near.dn.p}.`:dir<0&&near.up?` Zone to watch: resistance ${near.up.p}.`:'';
+ if(!dir)msg='Monthly and weekly are neutral. No directional edge: stay flat or trade range only.';
+ else if(aligned&&dc==='confirms')msg=`Monthly + weekly aligned, daily confirms. Look for ${side} setups with the trend.${lvl}`;
+ else if(aligned&&dc==='conflicts')msg=`Higher timeframes say ${side}, but daily conflicts. Wait for daily to flip back before entering.${lvl}`;
+ else if(aligned)msg=`Monthly + weekly aligned for ${side}. Daily is ${dc}: wait for confirmation.${lvl}`;
+ else if(m!=null&&w!=null)msg=`Monthly and weekly disagree. Lower conviction: reduce size or wait for alignment.`;
+ else msg=`Only one higher timeframe entered (${side} lean). Daily is ${dc}.${lvl}`}
+const row=(n,v)=>{const [a,c]=lab(v);return `<div class="f"><span>${n}</span><span class="pill ${c}">${a}</span></div>`};
+return `<div class="card"><div class="mu">Overall bias (Monthly 40% · Weekly 35% · Daily 25%)</div><div class="big ${tot>.15?'up':tot<-.15?'dn':'nu'}">${t}</div>${bar(tot)}<p>${msg}</p>${row('Monthly',m)}${row('Weekly',w)}${row('Daily confirmation',d)}</div>${evWarn()}<button class="b" onclick="saveBias()">Save today's bias to history</button><p class="mu">A rules-based checklist from the numbers you enter, not financial advice. Higher timeframes set direction; daily only confirms timing.</p>`}
+const ymd=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+const EV={FOMC:'#c0392b',CPI:'#e08a00',Jobs:'#2a7fd4',Other:'#8a8a85'};
+let cm=new Date();cm.setDate(1);let sel=null;
+function calView(){const y=cm.getFullYear(),mo=cm.getMonth(),first=new Date(y,mo,1).getDay(),dim=new Date(y,mo+1,0).getDate();S.ev=S.ev||{};const td=ymd(new Date());let g='';for(let i=0;i<first;i++)g+='<div></div>';
+for(let d=1;d<=dim;d++){const k=ymd(new Date(y,mo,d)),e=S.ev[k]||[];g+=`<div class="cd ${k===td?'td':''} ${k===sel?'sl':''}" onclick="sel='${k}';calView()">${d}<br>${e.map(t=>`<i style="background:${EV[t]}"></i>`).join('')}</div>`}
+const up=Object.keys(S.ev).filter(k=>k>=td&&S.ev[k].length).sort().slice(0,10);
+$('v').innerHTML=`<div class="card"><div class="f" style="border:0"><button class="b s" onclick="cm.setMonth(cm.getMonth()-1);calView()">‹</button><b>${cm.toLocaleString('default',{month:'long',year:'numeric'})}</b><button class="b s" onclick="cm.setMonth(cm.getMonth()+1);calView()">›</button></div><div class="cg">${'SMTWTFS'.split('').map(x=>`<div class="mu" style="text-align:center">${x}</div>`).join('')}${g}</div></div>`+(sel?`<div class="card"><b>${sel}</b><div class="chips">${Object.keys(EV).map(t=>`<button class="ch ${(S.ev[sel]||[]).includes(t)?'on':''}" style="--c:${EV[t]}" onclick="tg('${t}')">${t}</button>`).join('')}</div><div class="mu">Tap to mark or unmark. Jobs = NFP jobs report.</div></div>`:'<p class="mu">Tap a day to mark FOMC, CPI, Jobs report or other news.</p>')+`<h2>Upcoming</h2><div class="card">${up.map(k=>`<div class="f"><span>${k}</span><b>${S.ev[k].join(', ')}</b></div>`).join('')||'<span class="mu">Nothing marked yet.</span>'}</div>`}
+function tg(t){const a=S.ev[sel]=S.ev[sel]||[],i=a.indexOf(t);i<0?a.push(t):a.splice(i,1);if(!a.length)delete S.ev[sel];save();calView()}
+function evWarn(){const e=S.ev||{},t=new Date(),o=[];for(let i=0;i<=3;i++){const k=ymd(new Date(t.getFullYear(),t.getMonth(),t.getDate()+i));if(e[k])o.push((i?'in '+i+' day(s)':'today')+': '+e[k].join(', '))}return o.length?`<div class="card" style="border-color:var(--dn)"><b class="dn">High-impact news</b><br>${o.join('<br>')}<br><span class="mu">Expect volatility: consider waiting or cutting size.</span></div>`:''}
+function tot3(R){const m=avg(R.o.m),w=avg(R.o.w),d=avg(R.o.d),p=[[m,.4],[w,.35],[d,.25]].filter(x=>x[0]!=null),tw=p.reduce((a,x)=>a+x[1],0);return{m,w,d,t:tw?p.reduce((a,x)=>a+x[0]*x[1],0)/tw:null}}
+function saveBias(){const b=tot3(calc());if(b.t==null){alert('Enter some data first');return}S.hist=S.hist||[];S.hist.unshift({k:ymd(new Date()),m:b.m,w:b.w,d:b.d,t:b.t});S.hist=S.hist.slice(0,60);save();alert('Saved to history')}
+function addTrade(){const g=i=>$(i).value,dir=g('td')==='L'?1:-1,en=parseFloat(g('te')),ex=parseFloat(g('tx'));if(isNaN(en)||isNaN(ex)){alert('Enter entry and exit');return}const b=tot3(calc()).t;S.tr=S.tr||[];S.tr.unshift({k:ymd(new Date()),dir,en,ex,p:+(dir*(ex-en)).toFixed(2),bias:b==null?0:sg(b),n:g('tn')});save();logView()}
+function delTr(i){S.tr.splice(i,1);save();logView()}
+const st=a=>a.length?`${a.length} trades · ${Math.round(a.filter(x=>x.p>0).length/a.length*100)}% wins · ${a.reduce((s,x)=>s+x.p,0).toFixed(1)} pts`:'-';
+const ar=v=>v==null?'-':v>.15?'▲':v<-.15?'▼':'●';
+function logView(){const T=S.tr||[],H=S.hist||[];
+$('v').innerHTML=`<h2>Log a trade</h2><div class="card"><div class="row"><div><label>Direction</label><select id="td"><option value="L">Long</option><option value="S">Short</option></select></div><div><label>Entry</label><input id="te" type="number" inputmode="decimal" step="any"></div></div><div class="row"><div><label>Exit</label><input id="tx" type="number" inputmode="decimal" step="any"></div><div><label>Note</label><input id="tn"></div></div><button class="b" onclick="addTrade()">Add trade (tags current bias)</button></div><h2>Performance</h2><div class="card"><div class="f"><span>All</span><span>${st(T)}</span></div><div class="f"><span>With bias</span><span>${st(T.filter(x=>x.bias&&x.dir===x.bias))}</span></div><div class="f"><span>Against bias</span><span>${st(T.filter(x=>x.bias&&x.dir!==x.bias))}</span></div></div><h2>Trades</h2><div class="card">${T.map((x,i)=>`<div class="f"><span>${x.k} ${x.dir>0?'Long':'Short'} ${x.en} → ${x.ex}<br><span class="mu">${x.bias?(x.dir===x.bias?'with bias':'against bias'):'no bias'}${x.n?' · '+x.n:''}</span></span><span><b class="${x.p>0?'up':'dn'}">${x.p>0?'+':''}${x.p}</b> <button class="x" onclick="delTr(${i})">×</button></span></div>`).join('')||'<span class="mu">No trades yet.</span>'}</div><h2>Bias history (▲ bull ● neutral ▼ bear)</h2><div class="card">${H.map(h=>`<div class="f"><span>${h.k}</span><span>M ${ar(h.m)} W ${ar(h.w)} D ${ar(h.d)}</span><span class="pill ${lab(h.t)[1]}">${lab(h.t)[0]}</span></div>`).join('')||'<span class="mu">Save a bias from the Result tab.</span>'}</div>`}
+const MAN=['In London or New York session (not Asian chop)','Stop loss placed before entry, beyond structure/key level','Risk per trade fixed (e.g. 1% or less of account)','Reward-to-risk at least 1:2 to the next level','Lower-timeframe trigger (M5/M15 break + retest) matches bias','Spread normal and no news in the next 30 minutes','Within daily loss limit and max 2 trades today, not revenge trading'];
+function tk(i){S.rk=S.rk||{};S.rk[i]=!S.rk[i];save();rulesView()}
+function rulesView(){const R=calc(),b=tot3(R),dir=(b.m!=null&&sg(b.m))||(b.w!=null&&sg(b.w))||0,cd=R.o.d.find(x=>x.n==='Candle'),td=ymd(new Date()),tm=ymd(new Date(Date.now()+864e5)),ev=S.ev||{},md=parseFloat(S.md||5),nr=R.near,rk=S.rk||{};
+const lvOK=!nr||!dir||R.px==null?null:dir>0?!!nr.dn&&R.px-nr.dn.p<=md:!!nr.up&&nr.up.p-R.px<=md;
+const A=[['Monthly and weekly aligned',b.m==null||b.w==null?null:sg(b.m)===sg(b.w)&&sg(b.m)!==0],['Daily confirms direction',b.d==null||!dir?null:sg(b.d)===dir],['Overall score strong (30+/100) in direction',b.t==null||!dir?null:Math.abs(b.t)>=.3&&Math.sign(b.t)===dir],['Candle agrees with direction',!cd||!dir?null:Math.sign(cd.s)===dir],[`Price within ${md} pts of a key level in your direction`,lvOK],['No high-impact news today or tomorrow',!(ev[td]||ev[tm])]];
+const fail=A.filter(x=>x[1]===false).length,unk=A.filter(x=>x[1]===null).length,mt=MAN.filter((_,i)=>rk[i]).length;
+const side=dir>0?'LONG':'SHORT';let v,c;
+if(!dir){v='NO TRADE: no directional bias';c='dn'}else if(fail){v=`WAIT: ${fail} check(s) failed (${side} bias)`;c='dn'}else if(unk){v='INCOMPLETE: enter the missing data';c='nu'}else if(mt<MAN.length){v=`Tick the manual checks (${mt}/${MAN.length})`;c='nu'}else{v=`CLEARED: ${side} setups only`;c='up'}
+$('v').innerHTML=`<div class="card"><div class="mu">XAUUSD pre-entry verdict</div><div class="big ${c}">${v}</div></div><h2>Auto checks (from your data)</h2><div class="card">${A.map(x=>`<div class="f"><span>${x[0]}</span><b class="${x[1]===true?'up':x[1]===false?'dn':'nu'}">${x[1]===true?'\u2713':x[1]===false?'\u2717':'-'}</b></div>`).join('')}<label>Max distance from key level (points)</label><input type="number" inputmode="decimal" value="${S.md||5}" onchange="S.md=this.value;save();rulesView()"></div><h2>Manual checks (tap to tick)</h2><div class="card">${MAN.map((t,i)=>`<div class="f" onclick="tk(${i})" style="cursor:pointer"><span>${t}</span><b>${rk[i]?'\u2611':'\u2610'}</b></div>`).join('')}<button class="b" onclick="S.rk={};save();rulesView()">Reset manual checks for new day</button></div><h2>Golden rules</h2><div class="card"><ol style="margin:0;padding-left:18px"><li>Monthly and weekly set direction. Never trade against both.</li><li>Daily only confirms timing. If it conflicts, wait.</li><li>Enter at your key levels, not mid-range.</li><li>Skip entries around FOMC, CPI and the jobs report.</li><li>Stop loss before entry, minimum 1:2 reward-to-risk.</li><li>Max 2 trades a day. Stop at your daily loss limit.</li></ol></div>`}
+const SES=['Asia','London','New York','Other'],SETP=['Level bounce','Breakout + retest','Trend pullback','Other'];let FL={};
+const opt=(a,all)=>(all?`<option value="">${all}</option>`:'')+a.map(x=>`<option>${x}</option>`).join('');
+function addTrade(){const g=i=>$(i).value,dir=g('td')==='L'?1:-1,en=parseFloat(g('te')),ex=parseFloat(g('tx')),sl=parseFloat(g('ts'));if(isNaN(en)||isNaN(ex)){alert('Enter entry and exit');return}
+const b=tot3(calc()),bs=b.t==null?0:sg(b.t),al=b.m!=null&&b.w!=null&&sg(b.m)===sg(b.w)&&sg(b.m)!==0,p=+(dir*(ex-en)).toFixed(2),dt=g('tdt')||ymd(new Date());
+S.tr=S.tr||[];S.tr.unshift({k:dt,dir,en,ex,p,r:isNaN(sl)||sl===en?null:+(p/Math.abs(en-sl)).toFixed(2),bias:bs,al,ses:g('tse'),set:g('tst'),rul:g('tru'),nw:!!(S.ev&&S.ev[dt]),n:g('tn')});save();logView()}
+function delTr(i){S.tr.splice(i,1);save();jl()}
+function filt(){return (S.tr||[]).filter(x=>(!FL.d||String(x.dir)===FL.d)&&(!FL.s||x.ses===FL.s)&&(!FL.t||x.set===FL.t)&&(!FL.b||(FL.b==='w'?x.bias&&x.dir===x.bias:FL.b==='a'?x.bias&&x.dir!==x.bias:!x.bias))&&(!FL.u||x.rul===FL.u)&&(!FL.r||(FL.r==='w'?x.p>0:x.p<=0)))}
+function ins(T){const D=[['Session',x=>x.ses||'Unknown'],['Setup',x=>x.set||'Unknown'],['Bias',x=>!x.bias?'No bias':x.dir===x.bias?'With bias':'Against bias'],['Weekly + monthly',x=>x.al?'Aligned':'Not aligned'],['Followed rules?',x=>x.rul||'Unknown'],['News day',x=>x.nw?'News day':'No news']];
+return D.map(([n,f])=>{const g={};T.forEach(x=>{const k=f(x);(g[k]=g[k]||[]).push(x)});return `<div class="mu" style="margin-top:8px">${n}</div>`+Object.keys(g).map(k=>{const a=g[k],t=a.reduce((s,x)=>s+x.p,0);return `<div class="f"><span>${k}</span><span class="${t>0?'up':t<0?'dn':'nu'}">${st(a)}${a.length<3?' *':''}</span></div>`}).join('')}).join('')+'<p class="mu">* fewer than 3 trades: not reliable yet.</p>'}
+function jl(){const T=filt(),A=S.tr||[],R=T.filter(x=>x.r!=null),ar2=R.length?(R.reduce((s,x)=>s+x.r,0)/R.length).toFixed(2)+'R avg':'';
+$('jl').innerHTML=`<h2>Filtered result</h2><div class="card"><b>${st(T)}</b> <span class="mu">${ar2}</span></div><h2>What works (all trades)</h2><div class="card">${A.length?ins(A):'<span class="mu">Log trades to see patterns.</span>'}</div><h2>Trades (${T.length})</h2><div class="card">${T.map(x=>`<div class="f"><span>${x.k} ${x.dir>0?'Long':'Short'} ${x.en} \u2192 ${x.ex}<br><span class="mu">${[x.ses,x.set,!x.bias?'no bias':x.dir===x.bias?'with bias':'against bias',x.al?'aligned':'',x.rul?'rules: '+x.rul:'',x.nw?'news day':'',x.n].filter(Boolean).join(' \u00b7 ')}</span></span><span><b class="${x.p>0?'up':'dn'}">${x.p>0?'+':''}${x.p}</b>${x.r!=null?'<br><span class="mu">'+x.r+'R</span>':''} <button class="x" onclick="delTr(${S.tr.indexOf(x)})">\u00d7</button></span></div>`).join('')||'<span class="mu">No trades match.</span>'}</div>`}
+function logView(){FL={};const H=S.hist||[],fs=(k,id,o)=>`<select onchange="FL.${k}=this.value;jl()">${o}</select>`;
+$('v').innerHTML=`<h2>Journal a trade</h2><div class="card"><div class="row"><div><label>Date</label><input id="tdt" type="date" value="${ymd(new Date())}"></div><div><label>Direction</label><select id="td"><option value="L">Long</option><option value="S">Short</option></select></div></div><div class="row"><div><label>Entry</label><input id="te" type="number" inputmode="decimal" step="any"></div><div><label>Exit</label><input id="tx" type="number" inputmode="decimal" step="any"></div></div><div class="row"><div><label>Stop loss (optional, gives R)</label><input id="ts" type="number" inputmode="decimal" step="any"></div><div><label>Session</label><select id="tse">${opt(SES)}</select></div></div><div class="row"><div><label>Setup</label><select id="tst">${opt(SETP)}</select></div><div><label>Followed my rules?</label><select id="tru"><option>Yes</option><option>No</option></select></div></div><label>Notes (why, emotions, lesson)</label><input id="tn"><button class="b" onclick="addTrade()">Save trade (auto-tags bias, alignment, news)</button></div><h2>Filters</h2><div class="card"><div class="row">${fs('d','',`<option value="">Any direction</option><option value="1">Long</option><option value="-1">Short</option>`)}${fs('s','',opt(SES,'Any session'))}</div><div class="row" style="margin-top:8px">${fs('t','',opt(SETP,'Any setup'))}${fs('b','',`<option value="">Any bias</option><option value="w">With bias</option><option value="a">Against bias</option><option value="n">No bias</option>`)}</div><div class="row" style="margin-top:8px">${fs('u','',opt(['Yes','No'],'Rules: any'))}${fs('r','',`<option value="">Any result</option><option value="w">Wins</option><option value="l">Losses</option>`)}</div></div><div id="jl"></div><h2>Bias history (\u25b2 bull \u25cf neutral \u25bc bear)</h2><div class="card">${H.map(h=>`<div class="f"><span>${h.k}</span><span>M ${ar(h.m)} W ${ar(h.w)} D ${ar(h.d)}</span><span class="pill ${lab(h.t)[1]}">${lab(h.t)[0]}</span></div>`).join('')||'<span class="mu">Save a bias from the Result tab.</span>'}</div>`;jl()}
+function draw(){
+$('tabs').innerHTML=[['m','Monthly'],['w','Weekly'],['d','Daily'],['r','Result'],['l','History'],['c','News'],['k','Rules']].map(x=>`<button class="${tab===x[0]?'on':''}" onclick="tab='${x[0]}';draw()">${x[1]}</button>`).join('');upd(true)}
+function upd(full){const R=calc();
+if(tab==='r'){$('v').innerHTML=result(R);return}if(tab==='l'){if(full===true)logView();return}if(tab==='c'){calView();return}if(tab==='k'){rulesView();return}
+if(full===true){$('v').innerHTML=`<div id="rd"></div><h2>${SECT[tab].n} inputs</h2><div class="card">${inputs(tab)}</div>`}
+$('rd').innerHTML=sectView(tab,R)}
+draw();
+if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(function(){});
+</script></body></html>
