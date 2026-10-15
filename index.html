@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<link rel="manifest" href="manifest.json"><meta name="theme-color" content="#b8860b"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><link rel="apple-touch-icon" href="icon-192.png"><title>Market Bias Precheck</title>
+<title>Market Bias Precheck</title>
 <style>
 :root{--bg:#f6f5f1;--card:#fff;--tx:#1b1b1a;--mu:#6b6a65;--bd:#ddd9cf;--ac:#b8860b;--up:#1a7f4b;--dn:#c0392b;--nu:#8a8a85;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#141413;--card:#1f1f1d;--tx:#eeece6;--mu:#9a988f;--bd:#34332f;--ac:#e0b040;--up:#3fbf7f;--dn:#ef6a5a}}
@@ -147,6 +147,44 @@ function upd(full){const R=calc();
 if(tab==='r'){$('v').innerHTML=result(R);return}if(tab==='l'){if(full===true)logView();return}if(tab==='c'){calView();return}if(tab==='k'){rulesView();return}
 if(full===true){$('v').innerHTML=`<div id="rd"></div><h2>${SECT[tab].n} inputs</h2><div class="card">${inputs(tab)}</div>`}
 $('rd').innerHTML=sectView(tab,R)}
+/* v2 additions */
+SECT.m.f=SECT.m.f.filter(f=>f.id!=='cb'&&f.id!=='pcb').concat([{t:'h',l:'WGC central bank net buying (tonnes)'},N('q1','Q1'),N('q2','Q2'),N('q3','Q3'),N('q4','Q4'),{t:'h',l:'Previous month candle + OI'},N('mpo','Open'),N('mph','High'),N('mpl','Low'),N('mpc','Close'),N('mpoi','Open interest')]);
+SECT.w.f=[{t:'h',l:'COT managed money'},N('ml','Managed LONG (this week)'),N('ms','Managed SHORT (this week)'),N('pml','Managed LONG (last week)'),N('pms','Managed SHORT (last week)'),N('coi','COT total open interest (this week)'),N('pcoi','COT total open interest (last week)'),N('ext','Net position percentile, 0-100 (optional)','e.g. 85'),{t:'h',l:'FedWatch: next meeting'},{t:'d',id:'fd',l:'Next meeting date'},N('fe','Ease / cut probability (%)'),N('fn','No change probability (%)'),N('fh','Hike probability (%)','0'),{t:'h',l:'FedWatch: previous meeting (used for trend)'},{t:'d',id:'pfd',l:'Previous meeting date'},N('pfe','Ease / cut probability (%)'),N('pfn','No change probability (%)'),N('pfh','Hike probability (%)'),{t:'h',l:'Previous week candle + OI'},N('pwo','Open'),N('pwh','High'),N('pwl','Low'),N('pwc','Close'),N('pwoi','Open interest')];
+SECT.d.f.push({t:'x',id:'alch',l:'Alchemy SNR and reactions (notes, not scored)'});
+const inp0=inputs;
+inputs=function(k){const h=SECT[k].f.map(f=>{
+if(f.t==='h')return `<h2 style="margin:14px 0 0">${f.l}</h2>`;
+if(f.t==='d')return `<label>${f.l}</label><input type="date" value="${S[f.id]||''}" onchange="S['${f.id}']=this.value;save();upd()">`;
+if(f.t==='x')return `<label>${f.l}</label><textarea rows="3" oninput="S['${f.id}']=this.value;save()">${S[f.id]||''}</textarea>`;
+const t=SECT[k].f;SECT[k].f=[f];const r=inp0(k);SECT[k].f=t;return r}).join('');
+return h+(k==='w'?`<button class="b" onclick="roll()">Roll week: this week \u2192 last week</button>`:'')};
+function roll(){if(!confirm('Move this week values into last week and clear this week?'))return;[['ml','pml'],['ms','pms'],['coi','pcoi']].forEach(([a,b])=>{if(S[a]!==undefined&&S[a]!==''){S[b]=S[a];S[a]=''}});save();draw()}
+function sync(){const q=['q1','q2','q3','q4'].map(num).filter(x=>x!=null);
+if(q.length){S.cb=q[q.length-1];if(q.length>1)S.pcb=q[q.length-2];else delete S.pcb}
+if(num('fe')!=null){S.cut=S.fe;S.hike=S.fh||'0'}if(num('pfe')!=null)S.pcut=S.pfe;
+S.ev=S.ev||{};[S.fd,S.pfd].forEach(d=>{if(d){const a=S.ev[d]=S.ev[d]||[];if(!a.includes('FOMC'))a.push('FOMC')}});
+const c={...S};delete c.ts;delete c.sg;let h=0;for(const ch of JSON.stringify(c))h=(h*31+ch.charCodeAt(0))|0;if(h!==S.sg){S.sg=h;S.ts=new Date().toLocaleString();save()}}
+const calc0=calc;calc=function(){sync();return calc0()};
+saveBias=function(){const R=calc(),b=tot3(R);if(b.t==null){alert('Enter some data first');return}S.hist=S.hist||[];S.hist.unshift({k:ymd(new Date()),m:b.m,w:b.w,d:b.d,t:b.t,px:R.px,det:['m','w','d'].map((x,i)=>'MWD'[i]+': '+(R.o[x].map(y=>y.n+' - '+y.t).join('; ')||'-')).join('\n')});S.hist=S.hist.slice(0,60);save();alert('Saved to history')};
+draw=function(){$('tabs').innerHTML=[['m','Monthly'],['w','Weekly'],['d','Daily'],['r','Result'],['a','Assistant'],['l','History'],['c','News'],['k','Rules']].map(x=>`<button class="${tab===x[0]?'on':''}" onclick="tab='${x[0]}';draw()">${x[1]}</button>`).join('');upd(true)};
+const upd0=upd;upd=function(f){if(tab==='a'){$('v').innerHTML=asst();return}upd0(f)};
+const pch=(a,b)=>a==null||b==null||!b?null:(a-b)/Math.abs(b)*100,f1=v=>v==null?'-':(v>0?'+':'')+v.toFixed(1)+'%',wr=a=>a.length?Math.round(a.filter(x=>x.p>0).length/a.length*100)+'% win':'-';
+function asst(){const R=calc(),b=tot3(R),L=num('ml'),Sh=num('ms'),pL=num('pml'),pS=num('pms'),O=num('coi'),pO=num('pcoi'),ext=num('ext'),px=R.px;
+const dL=pch(L,pL),dS=pch(Sh,pS),dO=pch(O,pO),net=L!=null&&Sh!=null?L-Sh:null,pn=pL!=null&&pS!=null?pL-pS:null,dn=net!=null&&pn!=null?net-pn:null;
+let flow='Enter this week and last week COT plus total open interest.',ctl='-';
+if(dn!=null&&dO!=null){const up=dn>0,oiu=dO>0;flow=oiu&&up?'NEW longs entering: new money, healthy rally.':oiu&&!up?'NEW shorts entering: new money, healthy decline.':!oiu&&up?'Short covering: old money leaving shorts, weak rally (OI shrinking).':'Long liquidation: old money leaving longs, weak decline (OI shrinking).';ctl=oiu?(up?'Buyers, with new money':'Sellers, with new money'):'Old money exiting: no new control, move may fade'}
+let rev='Enter the percentile (0-100) to monitor COT extremes.';
+if(ext!=null){if(ext>=90)rev=dn!=null&&dn<=0?'Extreme long and net buying is stalling: reversal risk DOWN.':'Extreme long (crowded): watch for stalling or longs being sold.';else if(ext<=10)rev=dn!=null&&dn>=0?'Extreme short and net selling is fading: reversal risk UP.':'Extreme short (crowded): watch for a squeeze.';else rev='Not at an extreme ('+ext+'). No peak signal.'}
+const dd=R.o.d.find(x=>x.n==='Open interest');
+const pcd=(n,h,l,c)=>{const H=num(h),Lw=num(l),C=num(c);if(px==null||H==null||Lw==null)return `<div class="f"><span>${n}</span><span class="nu">enter candle + current price</span></div>`;return `<div class="f"><span>${n}</span><span>${px>H?'Above prior high: bullish break':px<Lw?'Below prior low: bearish break':'Inside prior range'+(C!=null?(px>C?', above prior close':', below prior close'):'')}</span></div>`};
+const mac=(n,k)=>{const fc=num(k+'f'),a=num(k+'a');let r='Enter forecast and actual.';if(fc!=null&&a!=null){const d=a-fc;r=d>0?'Hotter than forecast: USD/yields up, gold usually dips first. Do not chase; wait for a level reaction.':d<0?'Softer than forecast: USD/yields down, gold usually bids. Look for longs at support.':'In line: little surprise. Trade your levels.'}
+const I=(s,l)=>`<div><label>${l}</label><input type="number" step="any" inputmode="decimal" value="${S[k+s]??''}" onchange="S['${k+s}']=this.value;save();upd()"></div>`;
+return `<h2>${n}</h2><div class="card"><div class="row">${I('p','Previous')}${I('f','Forecast')}</div><div class="row">${I('a','Actual')}<div><label>Market reaction (note)</label><input value="${S[k+'r']||''}" onchange="S['${k+'r'}']=this.value;save();upd()"></div></div><p>${r}</p></div>`};
+const T=S.tr||[],n=T.length,wb=T.filter(x=>x.bias&&x.dir===x.bias),ab=T.filter(x=>x.bias&&x.dir!==x.bias),viol=T.filter(x=>x.rul==='No'),nw=T.filter(x=>x.nw);
+const perf=!n?'Log trades in History to track discipline.':ab.length>wb.length/2?'Too many trades against bias: trade only with the bias.':viol.length?'Rule breaks present: fix discipline before size.':'Disciplined so far: entries match the bias and rules.';
+const mi=[],any=ids=>ids.some(i=>num(i)!=null);
+if(!any(['q1','q2','q3','q4','cb']))mi.push('WGC central bank buying');if(num('dot')==null)mi.push('Dot plot');if(num('fe')==null)mi.push('FedWatch probabilities');if(L==null||Sh==null)mi.push('COT long/short');if(pL==null||pS==null)mi.push('Last week COT');if(O==null)mi.push('COT open interest');if(num('oc')==null)mi.push('Daily futures OI change');if(!any(['co','chi','clo','cc']))mi.push('Daily candle');if(px==null)mi.push('Current price');if(!parseLv().length)mi.push('Key levels');
+const rep=['MARKET BIAS REPORT '+new Date().toLocaleDateString(),'Updated: '+(S.ts||'-'),'Bias: '+lab(b.t)[0]+' (M '+lab(b.m)[0]+', W '+lab(b.w)[0]+', D '+lab(b.d)[0]+')','','MISSING DATA: '+(mi.join(', ')||'none'),'','TRADES WITH BIAS: '+wb.length+' of '+n+' ('+wb.filter(x=>x.al).length+' also monthly+weekly aligned)','TRADES AGAINST BIAS: '+ab.length,'RULES VIOLATED: '+(viol.map(x=>x.k+' '+(x.dir>0?'Long':'Short')+' '+x.en+'->'+x.ex).join('; ')||'none'),'NEWS-DAY TRADES: '+nw.length].join('\n');
+return `<div class="mu">Last updated: ${S.ts||'-'}</div><h2>Weekly COT read</h2><div class="card"><div class="f"><span>Managed long</span><b>${f1(dL)}</b></div><div class="f"><span>Managed short</span><b>${f1(dS)}</b></div><div class="f"><span>Open interest</span><b>${f1(dO)}</b></div><div class="f"><span>Net position</span><b>${net==null?'-':net.toLocaleString()}${dn!=null?' ('+(dn>0?'+':'')+dn.toLocaleString()+')':''}</b></div><p><b>${flow}</b></p><div class="f"><span>Who is in control</span><b>${ctl}</b></div><div class="f"><span>Peak / reversal watch</span><span>${rev}</span></div></div><h2>Daily flow</h2><div class="card">${dd?dd.t:'Enter the daily candle and OI change.'}</div><h2>Previous candles</h2><div class="card">${pcd('Previous week','pwh','pwl','pwc')}${pcd('Previous month','mph','mpl','mpc')}</div>${mac('CPI','cpi')}${mac('Jobs report','job')}<h2>Performance and discipline</h2><div class="card"><div class="f"><span>With bias</span><span>${wb.length} (${wr(wb)})</span></div><div class="f"><span>Against bias</span><span>${ab.length} (${wr(ab)})</span></div><div class="f"><span>Rules broken</span><span>${viol.length}</span></div><p><b>${perf}</b></p></div><h2>Past biases (tap for detail)</h2><div class="card">${(S.hist||[]).slice(0,10).map(h=>`<details class="f" style="display:block"><summary>${h.k} \u00b7 M ${ar(h.m)} W ${ar(h.w)} D ${ar(h.d)} \u00b7 ${lab(h.t)[0]}</summary><div class="mu" style="white-space:pre-wrap;margin-top:6px">${h.det||'No details (saved before this update).'}${h.px!=null?'\nPrice: '+h.px:''}</div></details>`).join('')||'<span class="mu">Save a bias from the Result tab.</span>'}</div><h2>Report</h2><div class="card"><textarea id="rep" rows="10" readonly>${rep}</textarea><button class="b" onclick="const t=$('rep');t.select();document.execCommand('copy')">Copy report</button></div>`}
 draw();
-if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(function(){});
 </script></body></html>
