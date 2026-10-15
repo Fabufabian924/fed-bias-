@@ -43,23 +43,32 @@ const REACT=[['','Select...'],[2,'Bullish rejection from support'],[2,'Broke abo
 function parseLv(){return (S.lv||'').split('\n').map(l=>{const m=l.match(/-?\d+(\.\d+)?/);return m?{p:parseFloat(m[0]),t:l.replace(m[0],'').trim()}:null}).filter(Boolean)}
 function calc(){
 const o={m:[],w:[],d:[]};
-let c=num('cur'),d=num('dot'),p=num('pdot');
-if(c!=null&&d!=null){const cuts=(c-d)/.25;let s=cl(cuts/2,-2,2),t=`${cuts.toFixed(1)} cuts of 25bp projected`;
+let lo=num('curlo'),hi=num('curhi'),c=lo!=null&&hi!=null?(lo+hi)/2:num('cur'),d=num('dot'),p=num('pdot');
+if(c!=null&&d!=null){const cuts=(c-d)/.25;let s=cl(cuts/2,-2,2),t=(cuts>=0?cuts.toFixed(1)+' cut(s)':(-cuts).toFixed(1)+' hike(s)')+` of 25bp projected (mid ${c} \u2192 ${d})`;
  if(p!=null){const sh=(p-d)/.25;s=cl(s+cl(sh/2,-1,1),-2,2);t+=sh>0?', dots shifted dovish':sh<0?', dots shifted hawkish':', no shift'}
  o.m.push({n:'Dot plot',s,t})}
 let cb=num('cb'),pcb=num('pcb');
 if(cb!=null){let s=cb>=50?1.5:cb>=20?1:cb>-20?0:cb>-50?-1:-1.5,t=cb+'t net buying';
- if(pcb!=null){s=cl(s+(cb>pcb?.5:cb<pcb?-.5:0),-2,2);t+=cb>pcb?', accelerating':cb<pcb?', slowing':', unchanged'}
- o.m.push({n:'Central banks',s,t})}
+ if(pcb!=null){s=cl(s+(cb>pcb?.5:cb<pcb?-.5:0),-2,2);t+=cb>pcb?', accelerating':cb<pcb?', slowing':', unchanged';if(pcb>0&&(cb/pcb>2||cb/pcb<.5))t+=` \u26a0 ${(cb/pcb).toFixed(1)}x previous quarter: confirm it is the Gold Demand Trends figure`}
+ o.m.push({n:'Central banks',s:cl(s,-1,1),t,w:.5})}
+{const ry=num('ry'),pry=num('pry'),dx=num('dxy'),ef=num('etf'),mh=num('mph'),mlo=num('mpl'),mc=num('mpc'),pxm=num('px'),cf=num('cpif'),ca=num('cpia');
+if(ry!=null&&pry!=null){const dy=ry-pry;o.m.push({n:'Real yields',s:cl(-dy*8,-2,2),t:`10Y real yield ${ry}% (${dy>=0?'+':''}${dy.toFixed(2)} vs last month): ${dy>0?'headwind':dy<0?'tailwind':'flat'} for gold`,w:1.5})}
+if(dx!=null)o.m.push({n:'US dollar',s:cl(-dx*1.5,-2,2),t:`DXY ${dx>=0?'+':''}${dx}% on the month: ${dx>0?'headwind':dx<0?'tailwind':'flat'} for gold`,w:1.5});
+if(ef!=null)o.m.push({n:'ETF flows',s:cl(ef/15,-2,2),t:`${ef>=0?'+':''}${ef}t ${ef>=0?'inflow':'outflow'} last month`});
+if(mh!=null&&mlo!=null&&pxm!=null){const s2=pxm>mh?2:pxm<mlo?-2:mc!=null?(pxm>mc?.5:-.5):0;o.m.push({n:'Price structure',s:s2,t:pxm>mh?'Above last month high: bullish break':pxm<mlo?'Below last month low: bearish break':'Inside last month range'+(mc!=null?(pxm>mc?', above its close':', below its close'):''),w:1.5})}
+if(cf!=null&&ca!=null){const e=ca-cf;o.m.push({n:'CPI surprise',s:cl(-e*5,-1.5,1.5),t:e>0?'Hotter than forecast: hawkish risk':e<0?'Softer than forecast: dovish tailwind':'In line',w:.7})}
+const dr=o.m.filter(x=>['Dot plot','Real yields','US dollar','Price structure'].includes(x.n));
+if(dr.length>=3){const pos=dr.filter(x=>x.s>.3).length,neg=dr.filter(x=>x.s<-.3).length,mx=Math.max(pos,neg);
+ o.m.push(mx>=3?{n:'Driver agreement',s:pos>neg?1:-1,t:`${mx} of ${dr.length} core drivers agree: higher conviction`}:{n:'Driver agreement',s:0,t:`Mixed: only ${mx} of ${dr.length} core drivers agree. Low conviction`,w:1.5})}}
 let l=num('ml'),sh=num('ms'),pl=num('pml'),ps=num('pms'),ex=num('ext');
 if(l!=null&&sh!=null){const net=l-sh;let s,t='Net '+net.toLocaleString();
  if(pl!=null&&ps!=null){const ch=net-(pl-ps);s=ch>10000?2:ch>0?1:ch<-10000?-2:ch<0?-1:0;t+=`, change ${ch>0?'+':''}${ch.toLocaleString()}`}
  else{s=net>0?1:net<0?-1:0}
  if(ex!=null){if(ex>=90){s-=1;t+=', crowded long (contrarian risk)'}else if(ex<=10){s+=1;t+=', crowded short (squeeze fuel)'}}
  o.w.push({n:'COT',s:cl(s,-2,2),t})}
-let cu=num('cut'),hk=num('hike')||0,pc=num('pcut');
+let cu=num('cut'),hk=num('hike')||0,pc=num('pcut'),ph=num('phike')||0;
 if(cu!=null){let s=cl((cu-hk)/50,-2,2),t=`Cut ${cu}% vs hike ${hk}%`;
- if(pc!=null){const dl=cu-pc;s=cl(s+cl(dl/20,-.5,.5),-2,2);t+=`, ${dl>=0?'+':''}${dl} pts vs last week`}
+ if(pc!=null){const dl=+((cu-hk)-(pc-ph)).toFixed(1);s=cl(s+cl(dl/20,-.5,.5),-2,2);t+=`, net ${dl>=0?'+':''}${dl} pts vs last week (hike ${hk-ph>=0?'+':''}${+(hk-ph).toFixed(1)})`}
  o.w.push({n:'FedWatch',s,t})}
 let O=num('co'),Hh=num('chi'),Ll=num('clo'),Cc=num('cc'),pcl=num('pcl'),pr=num('pc'),oi=num('oc');if(pr==null&&Cc!=null){const b0=pcl!=null?pcl:O;if(b0)pr=(Cc-b0)/b0*100}
 if(pr!=null&&oi!=null){let s,t;
@@ -75,7 +84,7 @@ if(px!=null&&lv.length){const dn=lv.filter(x=>x.p<=px).sort((a,b)=>b.p-a.p)[0],u
  if(dn&&up){const a=px-dn.p,b=up.p-px;if(a<b*.5)s=.5;else if(b<a*.5)s=-.5}
  near={dn,up};o.d.push({n:'Key levels',s,t})}
 return {o,near,px};}
-const avg=a=>a.length?a.reduce((x,y)=>x+y.s,0)/a.length/2:null;
+const avg=a=>a.length?a.reduce((x,y)=>x+y.s*(y.w||1),0)/a.reduce((x,y)=>x+(y.w||1),0)/2:null;
 const lab=v=>v==null?['No data','bgn']:v>.5?['Strong Bullish','bgu']:v>.15?['Bullish','bgu']:v<-.5?['Strong Bearish','bgd']:v<-.15?['Bearish','bgd']:['Neutral','bgn'];
 const sg=v=>v>.15?1:v<-.15?-1:0;
 function bar(v){if(v==null)return'';const w=Math.abs(v)*50;return `<div class="bar"><b></b><i style="${v>=0?'left:50%':'right:50%'};width:${w}%;background:var(${v>=0?'--up':'--dn'})"></i></div>`}
@@ -148,8 +157,8 @@ if(tab==='r'){$('v').innerHTML=result(R);return}if(tab==='l'){if(full===true)log
 if(full===true){$('v').innerHTML=`<div id="rd"></div><h2>${SECT[tab].n} inputs</h2><div class="card">${inputs(tab)}</div>`}
 $('rd').innerHTML=sectView(tab,R)}
 /* v2 additions */
-SECT.m.f=SECT.m.f.filter(f=>f.id!=='cb'&&f.id!=='pcb').concat([{t:'h',l:'WGC central bank net buying (tonnes)'},N('q1','Q1'),N('q2','Q2'),N('q3','Q3'),N('q4','Q4'),{t:'h',l:'Previous month candle + OI'},N('mpo','Open'),N('mph','High'),N('mpl','Low'),N('mpc','Close'),N('mpoi','Open interest')]);
-SECT.w.f=[{t:'h',l:'COT managed money'},N('ml','Managed LONG (this week)'),N('ms','Managed SHORT (this week)'),N('pml','Managed LONG (last week)'),N('pms','Managed SHORT (last week)'),N('coi','COT total open interest (this week)'),N('pcoi','COT total open interest (last week)'),N('ext','Net position percentile, 0-100 (optional)','e.g. 85'),{t:'h',l:'FedWatch: next meeting'},{t:'d',id:'fd',l:'Next meeting date'},N('fe','Ease / cut probability (%)'),N('fn','No change probability (%)'),N('fh','Hike probability (%)','0'),{t:'h',l:'FedWatch: previous meeting (used for trend)'},{t:'d',id:'pfd',l:'Previous meeting date'},N('pfe','Ease / cut probability (%)'),N('pfn','No change probability (%)'),N('pfh','Hike probability (%)'),{t:'h',l:'Previous week candle + OI'},N('pwo','Open'),N('pwh','High'),N('pwl','Low'),N('pwc','Close'),N('pwoi','Open interest')];
+SECT.m.f=[N('curlo','Fed funds target range LOW (%)','3.75'),N('curhi','Fed funds target range HIGH (%)','4.00')].concat(SECT.m.f.filter(f=>f.id!=='cb'&&f.id!=='pcb'&&f.id!=='cur')).concat([{t:'h',l:'Macro drivers (heaviest weight)'},N('ry','10Y TIPS real yield, now (%)'),N('pry','10Y TIPS real yield, 1 month ago (%)'),N('dxy','US dollar index (DXY) change over the month (%)'),N('etf','Gold ETF flows last month (tonnes, + in / - out)'),{t:'h',l:'WGC central bank net buying (tonnes, Gold Demand Trends quarterly)'},N('q1','Q1'),N('q2','Q2'),N('q3','Q3'),N('q4','Q4'),{t:'h',l:'Previous month candle + OI'},N('mpo','Open'),N('mph','High'),N('mpl','Low'),N('mpc','Close'),N('mpoi','Open interest')]);
+SECT.w.f=[{t:'h',l:'COT managed money'},N('ml','Managed LONG (this week)'),N('ms','Managed SHORT (this week)'),N('pml','Managed LONG (last week)'),N('pms','Managed SHORT (last week)'),N('coi','COT total open interest (this week)'),N('pcoi','COT total open interest (last week)'),N('ext','Net position percentile, 0-100 (optional)','e.g. 85'),{t:'h',l:'FedWatch: next meeting'},{t:'d',id:'fd',l:'Next meeting date'},N('fe','Ease / cut probability (%)'),N('fn','No change probability (%)'),N('fh','Hike probability (%)','0'),{t:'h',l:'FedWatch: same meeting, last week (Roll week fills this)'},N('lwe','Ease / cut probability last week (%)'),N('lwh','Hike probability last week (%)'),{t:'h',l:'FedWatch: previous meeting (fallback for trend)'},{t:'d',id:'pfd',l:'Previous meeting date'},N('pfe','Ease / cut probability (%)'),N('pfn','No change probability (%)'),N('pfh','Hike probability (%)'),{t:'h',l:'Previous week candle + OI'},N('pwo','Open'),N('pwh','High'),N('pwl','Low'),N('pwc','Close'),N('pwoi','Open interest')];
 SECT.d.f.push({t:'x',id:'alch',l:'Alchemy SNR and reactions (notes, not scored)'});
 const inp0=inputs;
 inputs=function(k){const h=SECT[k].f.map(f=>{
@@ -158,10 +167,10 @@ if(f.t==='d')return `<label>${f.l}</label><input type="date" value="${S[f.id]||'
 if(f.t==='x')return `<label>${f.l}</label><textarea rows="3" oninput="S['${f.id}']=this.value;save()">${S[f.id]||''}</textarea>`;
 const t=SECT[k].f;SECT[k].f=[f];const r=inp0(k);SECT[k].f=t;return r}).join('');
 return h+(k==='w'?`<button class="b" onclick="roll()">Roll week: this week \u2192 last week</button>`:'')};
-function roll(){if(!confirm('Move this week values into last week and clear this week?'))return;[['ml','pml'],['ms','pms'],['coi','pcoi']].forEach(([a,b])=>{if(S[a]!==undefined&&S[a]!==''){S[b]=S[a];S[a]=''}});save();draw()}
+function roll(){if(!confirm('Move this week COT into last week (clears this week COT) and copy FedWatch to last week?'))return;[['fe','lwe'],['fh','lwh']].forEach(([a,b])=>{if(S[a]!==undefined&&S[a]!==''){S[b]=S[a]}});[['ml','pml'],['ms','pms'],['coi','pcoi']].forEach(([a,b])=>{if(S[a]!==undefined&&S[a]!==''){S[b]=S[a];S[a]=''}});save();draw()}
 function sync(){const q=['q1','q2','q3','q4'].map(num).filter(x=>x!=null);
 if(q.length){S.cb=q[q.length-1];if(q.length>1)S.pcb=q[q.length-2];else delete S.pcb}
-if(num('fe')!=null){S.cut=S.fe;S.hike=S.fh||'0'}if(num('pfe')!=null)S.pcut=S.pfe;
+if(num('fe')!=null){S.cut=S.fe;S.hike=S.fh||'0'}if(num('lwe')!=null||num('lwh')!=null){S.pcut=S.lwe||'0';S.phike=S.lwh||'0'}else if(num('pfe')!=null){S.pcut=S.pfe;S.phike=S.pfh||'0'}
 S.ev=S.ev||{};[S.fd,S.pfd].forEach(d=>{if(d){const a=S.ev[d]=S.ev[d]||[];if(!a.includes('FOMC'))a.push('FOMC')}});
 const c={...S};delete c.ts;delete c.sg;let h=0;for(const ch of JSON.stringify(c))h=(h*31+ch.charCodeAt(0))|0;if(h!==S.sg){S.sg=h;S.ts=new Date().toLocaleString();save()}}
 const calc0=calc;calc=function(){sync();return calc0()};
@@ -183,7 +192,7 @@ return `<h2>${n}</h2><div class="card"><div class="row">${I('p','Previous')}${I(
 const T=S.tr||[],n=T.length,wb=T.filter(x=>x.bias&&x.dir===x.bias),ab=T.filter(x=>x.bias&&x.dir!==x.bias),viol=T.filter(x=>x.rul==='No'),nw=T.filter(x=>x.nw);
 const perf=!n?'Log trades in History to track discipline.':ab.length>wb.length/2?'Too many trades against bias: trade only with the bias.':viol.length?'Rule breaks present: fix discipline before size.':'Disciplined so far: entries match the bias and rules.';
 const mi=[],any=ids=>ids.some(i=>num(i)!=null);
-if(!any(['q1','q2','q3','q4','cb']))mi.push('WGC central bank buying');if(num('dot')==null)mi.push('Dot plot');if(num('fe')==null)mi.push('FedWatch probabilities');if(L==null||Sh==null)mi.push('COT long/short');if(pL==null||pS==null)mi.push('Last week COT');if(O==null)mi.push('COT open interest');if(num('oc')==null)mi.push('Daily futures OI change');if(!any(['co','chi','clo','cc']))mi.push('Daily candle');if(px==null)mi.push('Current price');if(!parseLv().length)mi.push('Key levels');
+if(!any(['q1','q2','q3','q4','cb']))mi.push('WGC central bank buying');if(num('curlo')==null||num('curhi')==null)mi.push('Fed funds range');if(num('dot')==null)mi.push('Dot plot');if(num('ry')==null||num('pry')==null)mi.push('Real yields');if(num('dxy')==null)mi.push('DXY change');if(num('etf')==null)mi.push('ETF flows');if(num('fe')==null)mi.push('FedWatch probabilities');if(L==null||Sh==null)mi.push('COT long/short');if(pL==null||pS==null)mi.push('Last week COT');if(O==null)mi.push('COT open interest');if(num('oc')==null)mi.push('Daily futures OI change');if(!any(['co','chi','clo','cc']))mi.push('Daily candle');if(px==null)mi.push('Current price');if(!parseLv().length)mi.push('Key levels');
 const rep=['MARKET BIAS REPORT '+new Date().toLocaleDateString(),'Updated: '+(S.ts||'-'),'Bias: '+lab(b.t)[0]+' (M '+lab(b.m)[0]+', W '+lab(b.w)[0]+', D '+lab(b.d)[0]+')','','MISSING DATA: '+(mi.join(', ')||'none'),'','TRADES WITH BIAS: '+wb.length+' of '+n+' ('+wb.filter(x=>x.al).length+' also monthly+weekly aligned)','TRADES AGAINST BIAS: '+ab.length,'RULES VIOLATED: '+(viol.map(x=>x.k+' '+(x.dir>0?'Long':'Short')+' '+x.en+'->'+x.ex).join('; ')||'none'),'NEWS-DAY TRADES: '+nw.length].join('\n');
 return `<div class="mu">Last updated: ${S.ts||'-'}</div><h2>Weekly COT read</h2><div class="card"><div class="f"><span>Managed long</span><b>${f1(dL)}</b></div><div class="f"><span>Managed short</span><b>${f1(dS)}</b></div><div class="f"><span>Open interest</span><b>${f1(dO)}</b></div><div class="f"><span>Net position</span><b>${net==null?'-':net.toLocaleString()}${dn!=null?' ('+(dn>0?'+':'')+dn.toLocaleString()+')':''}</b></div><p><b>${flow}</b></p><div class="f"><span>Who is in control</span><b>${ctl}</b></div><div class="f"><span>Peak / reversal watch</span><span>${rev}</span></div></div><h2>Daily flow</h2><div class="card">${dd?dd.t:'Enter the daily candle and OI change.'}</div><h2>Previous candles</h2><div class="card">${pcd('Previous week','pwh','pwl','pwc')}${pcd('Previous month','mph','mpl','mpc')}</div>${mac('CPI','cpi')}${mac('Jobs report','job')}<h2>Performance and discipline</h2><div class="card"><div class="f"><span>With bias</span><span>${wb.length} (${wr(wb)})</span></div><div class="f"><span>Against bias</span><span>${ab.length} (${wr(ab)})</span></div><div class="f"><span>Rules broken</span><span>${viol.length}</span></div><p><b>${perf}</b></p></div><h2>Past biases (tap for detail)</h2><div class="card">${(S.hist||[]).slice(0,10).map(h=>`<details class="f" style="display:block"><summary>${h.k} \u00b7 M ${ar(h.m)} W ${ar(h.w)} D ${ar(h.d)} \u00b7 ${lab(h.t)[0]}</summary><div class="mu" style="white-space:pre-wrap;margin-top:6px">${h.det||'No details (saved before this update).'}${h.px!=null?'\nPrice: '+h.px:''}</div></details>`).join('')||'<span class="mu">Save a bias from the Result tab.</span>'}</div><h2>Report</h2><div class="card"><textarea id="rep" rows="10" readonly>${rep}</textarea><button class="b" onclick="const t=$('rep');t.select();document.execCommand('copy')">Copy report</button></div>`}
 draw();
