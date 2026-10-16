@@ -32,6 +32,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--ac);box-
 .fig{display:flex;flex-direction:column;align-items:flex-end;line-height:1.25}.fig b{font-size:15px}.fig small{font-size:11px;font-weight:700}
 .pr>div:nth-child(2) input{border-style:dashed}
 .simple p.sum{font-size:15px;line-height:1.45;margin:0 0 8px}.simple ul{font-size:13px}.simple details{margin-top:8px;font-size:13px;color:var(--mu)}.simple summary{cursor:pointer;color:var(--ac);font-weight:600}
+.stale{color:#d98a00;font-weight:600;font-size:12px}
 </style></head><body>
 <h1>🥇 Market Bias Precheck</h1>
 <div class="tabs" id="tabs"></div>
@@ -42,7 +43,7 @@ const $=id=>document.getElementById(id);
 const cl=(x,a,b)=>Math.max(a,Math.min(b,x));
 const num=k=>{const v=parseFloat(S[k]);return isNaN(v)?null:v};
 let S={};try{S=JSON.parse(localStorage.getItem('bp')||'{}')}catch(e){}
-const save=()=>{try{localStorage.setItem('bp',JSON.stringify(S))}catch(e){}};
+let save=()=>{try{localStorage.setItem('bp',JSON.stringify(S))}catch(e){}};
 let tab='m';
 const N=(id,l,ph)=>({id,l,ph});
 const SECT={
@@ -249,6 +250,60 @@ const crowd=num('ext')!=null&&/Extreme|crowded/.test(x.rev||'')?x.rev:null;
 const ev=S.ev||{},soon=[];for(let i=0;i<=7;i++){const k=ymd(new Date(Date.now()+i*864e5));if(ev[k]&&ev[k].length)soon.push((i?'in '+i+' day(s)':'today')+': '+ev[k].join(', '))}
 const gl=[['Managed money','hedge funds and trend funds, the fast speculative money'],['Open interest (OI)','total open contracts. Rising = new money entering, falling = money leaving'],['Long liquidation','funds selling to close buys, a weak fall'],['Short covering','funds buying to close sells, a weak rise'],['Net position','longs minus shorts'],['Real yield','bond yield minus inflation. Gold dislikes it rising'],['DXY','the US dollar index'],['FedWatch','market odds of a Fed hike, cut or hold'],['Dot plot','each Fed member\u2019s own rate forecast'],['Key level','a price zone you marked']];
 return `<h2>In simple words</h2><div class="card simple"><p class="sum"><b>Overall: ${lbl(b.t)}.</b> ${plan}</p><div class="mu">Monthly (big trend): ${lbl(b.m)}</div>${li(top('m'))}<div class="mu">Weekly (funds and Fed): ${lbl(b.w)}</div>${li(top('w').concat(cot?[cot]:[],fed?[fed]:[],crowd?[crowd]:[]))}<div class="mu">Daily (timing): ${lbl(b.d)}</div>${li(top('d'))}${soon.length?`<p><b>Watch the news:</b> ${soon.join('; ')}. Expect fast moves: smaller size or wait.</p>`:''}<details><summary>What do these words mean?</summary><ul style="padding-left:18px">${gl.map(g=>`<li><b>${g[0]}</b>: ${g[1]}</li>`).join('')}</ul></details></div>`}
+
+/* v3 additions: stamps, stale, resets, GLD ETF flows, backup, fetch */
+const ageD=s=>Math.round((new Date(ymd(new Date())+'T00:00')-new Date(s+'T00:00'))/864e5);
+const CY=[[3,'co chi clo cc pcl pc oc px re'],[8,'ml ms pml pms coi pcoi mlp msp coip ext fe fn fh lwe lwh pfe pfn pfh'],[35,'curlo curhi ry pry dxy etf'],[100,'dot pdot q1 q2 q3 q4']].map(([n,s])=>[n,s.split(' ')]);
+const cyc=id=>{const r=CY.find(x=>x[1].includes(id));return r?r[0]:null};
+let PV={};const snap=()=>{PV={};for(const k in S){const v=S[k];if(typeof v==='string'||typeof v==='number')PV[k]=v}};
+const save0=save;
+save=function(){const t=ymd(new Date());S.asof=S.asof||{};for(const k in S){const v=S[k];if((typeof v==='string'||typeof v==='number')&&PV[k]!==v&&!['ts','sg','fk'].includes(k)){if(v==='')delete S.asof[k];else S.asof[k]=t}}snap();save0()};
+function stamp(id){const a=S.asof&&S.asof[id];if(!a)return'';const n=ageD(a),c=cyc(id),st=c&&n>c;return `<div class="mu ${st?'stale':''}" style="margin-top:2px">as of ${a} \u00b7 ${n?n+'d ago':'today'}${st?' \u00b7 stale':''}</div>`}
+function staleN(k){const ids=[];SECT[k].f.forEach(f=>[f.id,f.a,f.b].forEach(i=>i&&ids.push(i)));return ids.filter(i=>{const a=S.asof&&S.asof[i],c=cyc(i);return a&&c&&ageD(a)>c}).length}
+/* resets */
+const wk0=d=>{const x=new Date(d.getFullYear(),d.getMonth(),d.getDate());x.setDate(x.getDate()-((x.getDay()+6)%7));return ymd(x)};
+const DK='co chi clo cc pcl pc oc px re'.split(' '),WK='ml ms mlp msp coi coip ext fe fn fh'.split(' '),MK='ry dxy etf'.split(' ');
+function rollover(){const n=new Date(),d=ymd(n),w=wk0(n),m=d.slice(0,7);if(!S.last){S.last={d,w,m};save();return false}const L=S.last;let ch=false;
+const has=k=>S[k]!==undefined&&S[k]!=='';
+const arch=(t,ks)=>{const o={};ks.forEach(k=>{if(has(k))o[k]=S[k]});if(Object.keys(o).length){S.arch=S.arch||[];S.arch.unshift({t,k:L[t],o});S.arch=S.arch.slice(0,90)}};
+const clr=ks=>ks.forEach(k=>{if(has(k))S[k]=''});
+if(L.d!==d){arch('d',DK);clr(DK);L.d=d;ch=true}
+if(L.w!==w){arch('w',WK);[['fe','lwe'],['fh','lwh'],['ml','pml'],['ms','pms'],['coi','pcoi']].forEach(([a,b])=>{if(has(a))S[b]=S[a]});clr(WK);L.w=w;ch=true}
+if(L.m!==m){arch('m',MK);if(has('ry'))S.pry=S.ry;clr(MK);L.m=m;ch=true}
+if(ch){S.rk={};save()}return ch}
+/* GLD ETF flows */
+function etfStats(){const g=S.gl||{},ks=Object.keys(g).sort();if(!ks.length)return null;const lk=ks[ks.length-1],v=g[lk],n=new Date(),bef=l=>{const p=ks.filter(k=>k<l);return p.length?g[p[p.length-1]]:null},pk=ks[ks.length-2],pw=bef(wk0(n)),pm=bef(ymd(new Date(n.getFullYear(),n.getMonth(),1)));return{lk,v,d:pk?v-g[pk]:null,w:pw==null?null:v-pw,m:pm==null?null:v-pm}}
+const calc2=calc;calc=function(){const R=calc2(),E=etfStats();if(E&&ageD(E.lk)<=3){const f=x=>(x>=0?'+':'')+x.toFixed(1)+'t',pg=num('pc')!=null?num('pc'):(num('cc')!=null&&num('co')?(num('cc')-num('co'))/num('co')*100:null);
+if(E.d!=null){let t=`GLD ${f(E.d)} vs previous entry`;if(pg>.1&&E.d<0)t+=', divergence: price up but holdings falling (weaker rally)';else if(pg<-.1&&E.d>0)t+=', price down but holdings rising (buyers absorbing)';R.o.d.push({n:'ETF flow (daily)',s:cl(E.d/4,-1.5,1.5),t,w:.7})}
+if(E.w!=null)R.o.w.push({n:'ETF flow (weekly)',s:cl(E.w/10,-2,2),t:`GLD ${f(E.w)} this week`});
+if(E.m!=null&&num('etf')==null)R.o.m.push({n:'ETF flows',s:cl(E.m/15,-2,2),t:`GLD ${f(E.m)} this month so far (from your daily log)`})}return R};
+function logGld(){const v=parseFloat($('gldi').value);if(isNaN(v)){alert('Enter holdings in tonnes');return}S.gl=S.gl||{};S.gl[ymd(new Date())]=v;save();draw()}
+function etfCard(k){const E=etfStats(),f=v=>v==null?'-':(v>=0?'+':'')+v.toFixed(1)+'t';return `<h2 style="margin:14px 0 0">GLD ETF flow (tonnes)</h2>`+(k==='d'?`<label>GLD holdings today (tonnes)</label><input id="gldi" type="number" inputmode="decimal" step="any" placeholder="e.g. 1030.5"><button class="b" onclick="logGld()">Log today's GLD holdings</button>`:'')+`<div class="f"><span>${k==='d'?'Change vs previous entry':k==='w'?'Change this week':'Change this month'}</span><b>${E?f(E[k]):'-'}</b></div><div class="mu">${E?'Last logged '+E.lk+'. ':''}Log holdings once a day; weekly and monthly changes work themselves out.</div>`}
+/* fetch */
+const cotBtn=()=>`<button class="b" onclick="getCOT()">Fetch latest COT (gold, CFTC)</button><div class="mu">Fills this and last week. Report date is Tuesday, released Friday.</div>`;
+const fredBtn=()=>`<label>FRED API key (free, kept on this device only)</label><input id="fk" type="password" value="${S.fk||''}"><button class="b" onclick="getFRED()">Fetch from FRED</button><div class="mu">Fills Fed funds range, real yield and dot plot median. DXY, ETF and WGC stay manual.</div>`;
+async function getCOT(){try{const r=await fetch('https://publicreporting.cftc.gov/resource/72hh-3qpy.json?cftc_contract_market_code=088691&$order=report_date_as_yyyy_mm_dd%20DESC&$limit=2');if(!r.ok)throw new Error('HTTP '+r.status);const j=await r.json();if(j.length<2)throw new Error('no data returned');const[a,p]=j,g=(x,k)=>String(Math.round(+x[k])),dt=x=>(x.report_date_as_yyyy_mm_dd||'').slice(0,10);
+Object.assign(S,{ml:g(a,'m_money_positions_long_all'),ms:g(a,'m_money_positions_short_all'),coi:g(a,'open_interest_all'),pml:g(p,'m_money_positions_long_all'),pms:g(p,'m_money_positions_short_all'),pcoi:g(p,'open_interest_all'),mlp:'',msp:'',coip:''});save();
+['ml','ms','coi'].forEach(k=>S.asof[k]=dt(a));['pml','pms','pcoi'].forEach(k=>S.asof[k]=dt(p));save();draw()}catch(e){alert('COT fetch failed ('+e.message+'). Enter the numbers manually.')}}
+async function getFRED(){const k=($('fk').value||S.fk||'').trim();if(!k){alert('Paste your free FRED API key first');return}S.fk=k;
+const ob=async(id,n)=>{const r=await fetch(`https://api.stlouisfed.org/fred/series/observations?series_id=${id}&api_key=${k}&file_type=json&sort_order=desc&limit=${n}`);if(!r.ok)throw new Error(id+' HTTP '+r.status);return(await r.json()).observations.filter(o=>o.value!=='.')};
+try{const[hi,lo,ry,dot]=await Promise.all([ob('DFEDTARU',1),ob('DFEDTARL',1),ob('DFII10',40),ob('FEDTARMD',8)]);S.curhi=hi[0].value;S.curlo=lo[0].value;S.ry=ry[0].value;
+const t0=new Date(ry[0].date+'T00:00'),mo=ry.find(o=>(t0-new Date(o.date+'T00:00'))/864e5>=28);if(mo)S.pry=mo.value;
+const dd=dot.find(o=>o.date.slice(0,4)===String(new Date().getFullYear()));if(dd){if(S.dot&&+S.dot!==+dd.value)S.pdot=S.dot;S.dot=dd.value}
+save();S.asof.curhi=hi[0].date;S.asof.curlo=lo[0].date;S.asof.ry=ry[0].date;if(mo)S.asof.pry=mo.date;save();draw()}catch(e){alert('FRED fetch failed ('+e.message+'). The browser may be blocking it: enter these manually.')}}
+/* inputs wrapper */
+const inp1=inputs;inputs=function(k){let h=inp1(k).replace(/(<input[^>]*S\['(\w+)'\][^>]*>)/g,(m,a,id)=>a+stamp(id)),n=staleN(k);return (n?`<div class="stale">\u26a0 ${n} field(s) older than their normal cycle</div>`:'')+(k==='w'?cotBtn():k==='m'?fredBtn():'')+h+etfCard(k)};
+/* data tab */
+function dataView(){const A=S.arch||[],c=t=>A.filter(x=>x.t===t).length;return `<h2>Backup</h2><div class="card"><button class="b" onclick="bkDl()">Download backup file</button><button class="b" onclick="bkCp()">Copy backup to clipboard</button><label>Restore: choose a backup file</label><input type="file" accept=".json,application/json" onchange="bkFile(this)"><label>or paste backup text</label><textarea id="bkt" rows="3"></textarea><button class="b" onclick="bkRestore($('bkt').value)">Restore from text</button><div class="mu">Your FRED key is never included. Restoring replaces current data.</div></div><h2>Auto-reset</h2><div class="card"><div class="f"><span>Daily slots clear each new day</span><b>${c('d')} saved</b></div><div class="f"><span>Weekly clear Monday, this week rolls into last week</span><b>${c('w')} saved</b></div><div class="f"><span>Monthly clear on the 1st</span><b>${c('m')} saved</b></div><div class="mu">Carried over, never cleared: dot plot, WGC quarters, Fed range, key levels, notes, previous candles, news calendar, trades and history.</div></div>`}
+const bkObj=()=>{const o={...S};delete o.fk;return JSON.stringify({app:'bias',v:1,at:new Date().toISOString(),data:o})};
+function bkDl(){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([bkObj()],{type:'application/json'}));a.download='bias-backup-'+ymd(new Date())+'.json';document.body.appendChild(a);a.click();a.remove()}
+function bkCp(){navigator.clipboard.writeText(bkObj()).then(()=>alert('Backup copied'),()=>alert('Copy blocked: use Download instead'))}
+function bkFile(i){const f=i.files[0];if(!f)return;const r=new FileReader();r.onload=()=>bkRestore(r.result);r.readAsText(f)}
+function bkRestore(t){try{const d=JSON.parse(t);if(!d||d.app!=='bias'||!d.data)throw 0;if(!confirm('Replace current data with this backup?'))return;S=Object.assign({},d.data,{fk:S.fk});snap();save0();draw()}catch(e){alert('Not a valid backup')}}
+const upd1=upd;upd=function(f){if(tab==='z'){$('v').innerHTML=dataView();return}upd1(f)};
+draw=function(){$('tabs').innerHTML=[['m','Monthly'],['w','Weekly'],['d','Daily'],['r','Result'],['a','Assistant'],['l','History'],['c','News'],['k','Rules'],['z','Data']].map(x=>`<button class="${tab===x[0]?'on':''}" onclick="tab='${x[0]}';draw()">${x[1]}</button>`).join('');upd(true)};
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&rollover())draw()});
+snap();rollover();
 
 draw();
 if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(function(){});
